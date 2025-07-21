@@ -1,0 +1,1001 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#000000">
+    <title>Sahasam Game</title>
+    <link rel="icon" type="image/png" href="/static/logo/favicon2.png">
+    <script src="https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/phaser3-rex-plugins/dist/rexvirtualjoystickplugin.min.js"></script>
+    <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
+    <script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
+    <script src="/static/mobile-fallback.js"></script>
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #000;
+            font-family: Arial, sans-serif;
+            overflow: hidden;
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            -khtml-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+        
+        #challenge-container {
+            position: absolute;
+            height: 95vh;
+            aspect-ratio: 1/1;
+            display: none;
+            border: 5px solid #fff;
+            box-shadow: 0 0 20px #000;
+        }
+        
+        #challenge-iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+        
+        #loading-screen {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            z-index: 1000;
+        }
+        
+        #game-container {
+            visibility: hidden;
+            width: 100%;
+            height: 100%;
+            max-width: 100vw;
+            max-height: 100vh;
+        }
+        
+        /* BEAUTIFUL COUNTERS WRAPPER */
+        .counters-wrapper {
+            position: fixed;
+            top: 24px;
+            right: 32px;
+            z-index: 1200;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 16px;
+        }
+        
+        .key-counter-container, .cash-counter-container {
+            display: flex;
+            align-items: center;
+            background: rgba(40, 40, 10, 0.88);
+            padding: 12px 22px 12px 18px;
+            border-radius: 32px;
+            box-shadow: 0 4px 24px #ffd70099, 0 1px 4px #0009;
+            border: 2px solid #ffd700bb;
+            font-family: 'Poppins', Arial, sans-serif;
+            font-size: 1.45rem;
+            font-weight: 600;
+            min-width: 90px;
+            letter-spacing: 1.5px;
+            transition: background 0.2s;
+        }
+        
+        .key-counter-container:hover,
+        .cash-counter-container:hover {
+            background: rgba(60, 60, 16, 0.98);
+        }
+        
+        .key-counter-icon {
+            margin-right: 12px;
+            font-size: 2.1rem;
+            filter: drop-shadow(0 0 9px #ffd700bb);
+            animation: keyShine 2.2s infinite;
+        }
+        
+        .cash-counter-icon {
+            margin-right: 12px;
+            font-size: 2.1rem;
+            filter: drop-shadow(0 0 9px #37e80cbb);
+            animation: cashShine 2s infinite;
+        }
+        
+        @keyframes keyShine {
+            0%,100% { filter: drop-shadow(0 0 9px #ffd700bb);}
+            50% { filter: drop-shadow(0 0 18px #ffd700ee) brightness(1.3);}
+        }
+        
+        @keyframes cashShine {
+            0%,100% { filter: drop-shadow(0 0 9px #37e80cbb);}
+            50% { filter: drop-shadow(0 0 18px #37e80cee) brightness(1.3);}
+        }
+        
+        .key-counter-count {
+            color: #FFD700;
+            text-shadow: 0 2px 8px #ffd70088, 0 0 4px #fff8;
+            font-size: 2.1rem;
+            margin-left: 2px;
+            vertical-align: middle;
+        }
+        
+        .cash-counter-count {
+            color: #37e80c;
+            text-shadow: 0 2px 8px #37e80c88, 0 0 4px #fff8;
+            font-size: 2.1rem;
+            margin-left: 2px;
+            vertical-align: middle;
+        }
+        
+        @media (max-width: 700px) {
+            .counters-wrapper {
+                top: 7px;
+                right: 6px;
+                gap: 7px;
+            }
+            .key-counter-container,
+            .cash-counter-container {
+                font-size: 1.1rem;
+                padding: 9px 16px 9px 12px;
+            }
+            .key-counter-icon,
+            .cash-counter-icon {
+                font-size: 1.45rem;
+            }
+            .key-counter-count,
+            .cash-counter-count {
+                font-size: 1.4rem;
+            }
+            #challenge-container { 
+                width: 95vw;
+                aspect-ratio: 1/1;
+            }
+        }
+        
+        #loading::-webkit-scrollbar{
+            display: none;
+        }
+        
+        #loading-screen::-webkit-scrollbar{
+            display: none;
+        }
+        
+        .audio-controls {
+            position: fixed;
+            bottom: 32px;
+            right: 36px;
+            z-index: 1300;
+            display: flex;
+            align-items: center;
+            background: linear-gradient(135deg, rgba(40, 40, 10, 0.95), rgba(60, 60, 16, 0.9));
+            padding: 14px 24px;
+            border-radius: 50px;
+            box-shadow: 
+                0 8px 32px rgba(255, 215, 0, 0.15),
+                0 2px 8px rgba(0, 0, 0, 0.3),
+                inset 0 1px 0 rgba(255, 255, 255, 0.1);
+            border: 2px solid rgba(255, 215, 0, 0.7);
+            gap: 100px;
+            font-family: 'Poppins', Arial, sans-serif;
+            backdrop-filter: blur(10px);
+            transition: all 0.3s ease;
+        }
+
+        .audio-controls:hover {
+            background: linear-gradient(135deg, rgba(60, 60, 16, 0.98), rgba(80, 80, 20, 0.95));
+            box-shadow: 
+                0 12px 40px rgba(255, 215, 0, 0.25),
+                0 4px 12px rgba(0, 0, 0, 0.4),
+                inset 0 1px 0 rgba(255, 255, 255, 0.15);
+            transform: translateY(-2px);
+        }
+
+        .audio-controls button {
+            background: linear-gradient(135deg, rgba(255, 215, 0, 0.1), rgba(255, 215, 0, 0.05));
+            border: 1px solid rgba(255, 215, 0, 0.3);
+            color: #FFD700;
+            font-size: 1.8rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border-radius: 50%;
+            padding: 10px;
+            width: 48px;
+            height: 48px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .audio-controls button::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(45deg, transparent, rgba(255, 215, 0, 0.1), transparent);
+            opacity: 0;
+            transition: opacity 0.2s ease;
+        }
+
+        .audio-controls button:hover {
+            background: linear-gradient(135deg, rgba(255, 215, 0, 0.2), rgba(255, 215, 0, 0.1));
+            border-color: rgba(255, 215, 0, 0.6);
+            color: #fff;
+            transform: scale(1.05);
+            box-shadow: 
+                0 4px 16px rgba(255, 215, 0, 0.3),
+                inset 0 1px 0 rgba(255, 255, 255, 0.2);
+        }
+
+        .audio-controls button:hover::before {
+            opacity: 1;
+        }
+
+        .audio-controls button:active {
+            transform: scale(0.95);
+            box-shadow: 
+                0 2px 8px rgba(255, 215, 0, 0.2),
+                inset 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        .audio-controls button[disabled] {
+            opacity: 0.4;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .audio-controls button[disabled]:hover {
+            background: linear-gradient(135deg, rgba(255, 215, 0, 0.1), rgba(255, 215, 0, 0.05));
+            border-color: rgba(255, 215, 0, 0.3);
+            color: #FFD700;
+            transform: none;
+            box-shadow: none;
+        }
+
+        /* Volume Range Wrapper */
+        .vol-range-wrapper {
+            position: absolute;
+            bottom: 80px;
+            left: 50%;
+            transform: translate(-50%,-50%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 50px;
+            min-width: 60px;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+            pointer-events: none;
+        }
+
+        .vol-range-wrapper.show {
+            opacity: 1;
+            visibility: visible;
+            pointer-events: auto;
+            transform: translateX(-50%) translateY(-50px);
+        }
+
+        .vol-range-wrapper input[type="range"] {
+            width: 140px;
+            height: 6px;
+            transform: rotate(-90deg);
+            margin: 24px 0;
+            background: linear-gradient(to right, rgba(255, 215, 0, 0.2), rgba(255, 215, 0, 0.1));
+            border-radius: 3px;
+            outline: none;
+            transition: all 0.2s ease;
+            appearance: none;
+        }
+
+        .vol-range-wrapper input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #FFD700, #FFA500);
+            cursor: pointer;
+            box-shadow: 
+                0 2px 8px rgba(255, 215, 0, 0.4),
+                inset 0 1px 0 rgba(255, 255, 255, 0.3);
+            transition: all 0.2s ease;
+        }
+
+        .vol-range-wrapper input[type="range"]::-webkit-slider-thumb:hover {
+            transform: scale(1.1);
+            box-shadow: 
+                0 4px 12px rgba(255, 215, 0, 0.6),
+                inset 0 1px 0 rgba(255, 255, 255, 0.4);
+        }
+
+        .vol-range-wrapper input[type="range"]::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #FFD700, #FFA500);
+            cursor: pointer;
+            border: none;
+            box-shadow: 
+                0 2px 8px rgba(255, 215, 0, 0.4),
+                inset 0 1px 0 rgba(255, 255, 255, 0.3);
+            transition: all 0.2s ease;
+        }
+
+        .vol-display {
+            color: #FFD700;
+            font-size: 1.1rem;
+            font-weight: 600;
+            text-align: center;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8);
+            min-width: 50px;
+            padding: 6px 12px;
+            background: rgba(0, 0, 0, 0.7);
+            border-radius: 12px;
+            border: 1px solid rgba(255, 215, 0, 0.5);
+            backdrop-filter: blur(5px);
+        }
+
+        /* Mobile Responsive */
+        @media (max-width: 700px) {
+            .counters-wrapper {
+                top: 12px;
+                right: 12px;
+                gap: 8px;
+            }
+            .key-counter-container,
+            .cash-counter-container {
+                font-size: 1.1rem;
+                padding: 8px 16px 8px 12px;
+            }
+            .key-counter-icon,
+            .cash-counter-icon {
+                font-size: 1.4rem;
+            }
+            .key-counter-count,
+            .cash-counter-count {
+                font-size: 1.3rem;
+            }
+            
+            .audio-controls {
+                bottom: 16px;
+                right: 16px;
+                padding: 10px 16px;
+                gap: 12px;
+            }
+            
+            .audio-controls button {
+                font-size: 1.4rem;
+                width: 40px;
+                height: 40px;
+                padding: 8px;
+            }
+            
+            .vol-range-wrapper {
+                bottom: 70px;
+                padding: 16px 12px;
+                gap: 40px;
+                transform: translateX(-50%) translateY(-50px);
+            }
+            .vol-range-wrapper.show{
+                transform: translate(-50%,-10px);
+            }
+            .vol-range-wrapper input[type="range"] {
+                width: 100px;
+                margin: 20px 0;
+            }
+            
+            .vol-display {
+                font-size: 0.95rem;
+                min-width: 25px;
+            }
+        }
+        
+        .home-btn,
+        .info-btn {
+            position: fixed;
+            left: 32px;
+            z-index: 1300;
+            background: #0000002a;
+            border: 2px solid #ffd700bb;
+            border-radius: 50%;
+            width: 60px;
+            height: 60px;
+            box-shadow: 0 4px 24px #ffd70055, 0 1px 4px #0007;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2.1rem;
+            color: #FFD700;
+            cursor: pointer;
+            transition: background 0.2s, box-shadow 0.2s, transform 0.15s;
+        }
+        
+        .home-btn {
+            top: 25px;
+        }
+        
+        .info-btn {
+            top: 95px;
+        }
+        
+        .home-btn:hover,
+        .info-btn:hover {
+            background: #FFD7005a;
+            color: #fff;
+            box-shadow: 0 8px 32px #ffd70099, 0 2px 8px #0009;
+            transform: scale(1.06);
+        }
+        
+        .home-btn:active,
+        .info-btn:active {
+            background: #FFD700;
+            color: #fff;
+            transform: scale(0.95);
+        }
+        
+        @media (max-width: 700px) {
+            .home-btn,
+            .info-btn {
+                left: 9px;
+                width: 40px;
+                height: 40px;
+                font-size: 1.3rem;
+            }
+            .home-btn {
+                top: 10px;
+            }
+            .info-btn {
+                top: 60px;
+            }
+        }
+        
+        /* Info Dialog styles */
+        #infoDialog {
+            display: none;
+            position: fixed;
+            top: 120px;
+            left: 50%;
+            transform: translateX(-50%);
+            min-width: 320px;
+            max-width: 95vw;
+            background: rgba(40,40,10,0.97);
+            border: 3px solid #FFD700;
+            border-radius: 24px;
+            box-shadow: 0 8px 48px #ffd70088, 0 2px 8px #0009;
+            z-index: 2500;
+            padding: 32px 24px 24px 24px;
+            color: #FFD700;
+            font-family: 'Poppins', Arial, sans-serif;
+            font-size: 1.15rem;
+            text-align: left;
+            min-height: 200px;
+            max-height: 300px;
+            overflow-y: scroll;
+        }
+        
+        #infoDialog::-webkit-scrollbar{
+            display: none;
+        }
+        
+        #infoDialog h2 {
+            font-size: 1.32rem;
+            margin-bottom: 12px;
+            color: #FFD700;
+            font-family: inherit;
+        }
+        
+        #infoDialog ul {
+            margin: 10px 0 0 0;
+            padding-left: 20px;
+        }
+        
+        #infoDialog li {
+            margin: 10px 0;
+            color: #fff;
+        }
+        
+        #infoDialog .close-btn {
+            float: right;
+            background: #FFD7005a;
+            color: #fff;
+            border: 3px solid #FFD700;;
+            font-size: 1rem;
+            font-weight: 700;
+            border-radius: 50%;
+            height: 30px;
+            width: 30px;
+            cursor: pointer;
+            box-shadow: 0 2px 8px #ffd70055;
+            margin-top: -10px;
+            margin-right: -10px;
+            transition: all 0.2s;
+        }
+        
+        #infoDialog .close-btn:hover {
+            transform: scale(1.1);
+            color: #FFD700;
+        }
+        
+        #infoDialog .close-btn:active {
+            transform: scale(0.8);
+            color: #FFD700;
+        }
+        
+        @media (max-width: 700px) {
+            #infoDialog {
+                top: 120px;
+                min-width: 220px;
+                padding: 20px 8px 16px 8px;
+                font-size: 0.95rem;
+            }
+            #infoDialog .close-btn {
+                margin-top: -15px;
+                margin-right: -5px;
+            }
+        }
+        
+        kbd {
+            background: #eee;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-shadow: 1px 1px 2px rgba(0,0,0,0.2);
+            padding: 3px 6px;
+            color: #000;
+            font-family: monospace;
+            font-size: 0.95em;
+        }
+        
+        .coin {
+            width: 30px;
+            height: 30px;
+            background: radial-gradient(circle, #ffd700, #ffed4e);
+            border-radius: 50%;
+            border: 2px solid #ffb347;
+        }
+
+        .coin::before {
+            content: 'S';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 10px;
+            font-weight: bold;
+            color: #b8860b;
+        }
+        
+        .progress-container {
+            position: relative;
+            margin: 20px auto;
+        }
+        
+        .progress-bar {
+            width: 180px;
+            height: 30px;
+            background: #34495e96;
+            border-radius: 40px;
+            overflow: hidden;
+            border: 2px solid #ffd700;
+            position: relative;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #ffd700, #ffed4e);
+            width: 0%;
+            transition: width 0.5s ease-in-out;
+            border-radius: 8px;
+        }
+
+        .progress-text {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 15px;
+            font-weight: bold;
+            color: #00b421;
+            z-index: 10;
+        }
+
+        .msg-bar {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: auto;
+            max-width: 90%;
+            padding: 10px 20px;
+            margin: 0 auto;
+            border-radius: 7px;
+            font-size: 1.02rem;
+            text-align: center;
+            font-family: inherit;
+            font-weight: 500;
+            opacity: 1;
+            transition: background 0.3s, color 0.3s;
+            z-index: 9999;
+            animation: slideup 0.3s ease-out;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        .msg-bar.error {
+            background: #ffebee;
+            color: #b71c1c;
+            border: 1.5px solid #e57373;
+        }
+        
+        .msg-bar.success {
+            background: #e8f5e9;
+            color: #1b5e20;
+            border: 1.5px solid #81c784;
+        }
+        
+        .msg-bar.info {
+            background: #e3f2fd;
+            color: #01579b;
+            border: 1.5px solid #64b5f6;
+        }
+        
+        @keyframes slideup {
+            0% {
+                transform: translate(-50%, -20px);
+                opacity: 0;
+            }
+            100% {
+                transform: translate(-50%, 0);
+                opacity: 1;
+            }
+        }
+    </style>
+</head>
+<body>
+    <a href="/sahasamhomepage" class="home-btn" title="Home"><ion-icon name="home"></ion-icon></a>
+    <button class="info-btn" title="Instructions" id="infoBtn"><ion-icon name="information"></ion-icon></button>
+    
+    <!-- Info Dialog -->
+    <div id="infoDialog">
+        <button class="close-btn" onclick="closeInfo()">x</button>
+        <h2>Game Instructions</h2>
+        <ul>
+            <li>🕹 On PC, use <kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd> to move your character.</li>
+            <li>🕴 Press <kbd>Space</kbd> to interact with objects, NPCs, and during tasks.</li>
+            <li>Press <kbd>M</kbd> to Mute/Unmute the sound system</li>
+            <li>Press <kbd>↑</kbd> to increase Volume</li>
+            <li>Press <kbd>↓</kbd> to decrease Volume</li>
+            <li>🖱 Use your <kbd>Mouse</kbd> for performing tasks like puzzles or games.</li>
+            <li>📱 On mobile, use the <strong>virtual joystick</strong> to move and tap the <strong>Action button</strong> to interact.</li>
+            <li>🔑 Collect <strong>6 keys</strong> to unlock the hidden <strong>Underground Map</strong>.</li>
+            <li>🎰 Earn points through the <strong>Spin Wheel</strong> after collecting every 2 keys.</li>
+            <li>💸 Redeem collected points for <strong>real cash rewards</strong></li>
+            <li>🗣 Interact with NPCs to receive clues, story quests, and bonus hints.</li>
+            <li>🚪 Solve puzzles and discover secret paths to progress further.</li>
+            <li>📜 Check your key count and point score using the top-right status counters.</li>
+            <li>🏠 Tap the <strong>Home button</strong> anytime to return to the main screen.</li>
+            <li>🗝 In the <strong>Underground Map</strong>, guess the <strong>Treasure Unlock Code</strong> 2 times per day.</li>
+            <li>🤝 Get <strong>extra chances</strong> by referring friends — more friends, more guesses!</li>
+        </ul>
+    </div>
+    
+    <div id="loading-screen">
+        <iframe src="/loading" style="width:100%; height:100%; border:none;" id="loading"></iframe>
+    </div>
+    
+    <div id="game-container"></div>
+    
+    <div id="challenge-container">
+        <iframe id="challenge-iframe"></iframe>
+    </div>
+
+    <!-- Counters Wrapper -->
+    <div class="counters-wrapper">
+        <div class="progress-container" id="amountCounter" style="display:none;">
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill"></div>
+                <div class="progress-text" id="progressText">₹10000</div>
+            </div>
+        </div>
+        <div class="key-counter-container" id="keyCounter" style="display:none;">
+            <span class="key-counter-icon" title="Keys">&#128273;</span>
+            <span class="key-counter-count" id="keys"></span>
+        </div>
+        <div class="key-counter-container" id="chanceCounter" style="display:none;">
+            <span class="key-counter-icon" title="Keys" style="color: #FFD700;">⌨</span>
+            <span class="key-counter-count" id="chances"></span>
+        </div>
+        <div class="cash-counter-container" id="cashCounter" style="display:none;">
+            <span class="cash-counter-icon" title="Cash"><div class="coin"></div></span>
+            <span class="cash-counter-count" id="cashs"></span>
+        </div>
+    </div>
+    
+    <div class="audio-controls" id="sbox" style="display: none;">
+        <button id="volBtn" title="Volume Control">🔊</button>
+        <div id="volRangeWrapper" class="vol-range-wrapper">
+            <span id="volDisplay" class="vol-display">100%</span>
+            <input type="range" id="volRange" min="0" max="100" value="100" step="1">
+        </div>
+    </div>
+
+    <script>
+        window.STATIC_PATHS = {
+            map_background : "/static/assets/imgs/worldmap.png",
+            map_foreground : "/static/assets/imgs/worldmap_foreground.png",
+            collision_tiles : "/static/assets/imgs/collision_tileset.png",
+            map_data : "/static/assets/worldmap_data.tmj",
+            map_background2 : "/static/assets/imgs/mazemap.png",
+            map_foreground2 : "/static/assets/imgs/mazemap_foreground.png",
+            collision_tiles2 : "/static/assets/imgs/collision_tileset_G.png",
+            map_data2 : "/static/assets/mazemap_data.tmj",
+            door: "/static/assets/imgs/door-removebg-preview.png",
+            goal: "/static/assets/imgs/budha.png",
+            action_button : "/static/assets/action_button.png",
+            player : "/static/assets/player1/playerDown.png",
+            playeru : "/static/assets/player1/playerUp.png",
+            playerl : "/static/assets/player1/playerLeft.png",
+            playerr : "/static/assets/player1/playerRight.png",
+            npc7 : "/static/assets/npc/babu2.png",
+            npc6 : "/static/assets/npc/jaya.png",
+            npc5 : "/static/assets/npc/baijus.png",
+            npc4 : "/static/assets/npc/narains.png",
+            npc3 : "/static/assets/npc/gouri.png",
+            npc2 : "/static/assets/npc/althaf.png",
+            npc1 : "/static/assets/npc/aju.png",
+            npc7_audio : "/static/assets/npcMp3/babu-antony.mp3",
+            npc6_audio : "/static/assets/npcMp3/npc6.mp3",
+            npc5_audio : "/static/assets/npcMp3/npc5.mp3",
+            npc4_audio : "/static/assets/npcMp3/npc4.mp3",
+            npc3_audio : "/static/assets/npcMp3/npc3.mp3",
+            npc2_audio : "/static/assets/npcMp3/npc2.mp3",
+            npc1_audio : "/static/assets/npcMp3/npc1.mp3",
+            npc7_audio2 : "/static/assets/npcMp3/babu-antony.mp3",
+            npc6_audio2 : "/static/assets/npcMp3/npc6again.mp3",
+            npc5_audio2 : "/static/assets/npcMp3/npc5again.mp3",
+            npc4_audio2 : "/static/assets/npcMp3/npc4again.mp3",
+            npc3_audio2 : "/static/assets/npcMp3/npc3again.mp3",
+            npc2_audio2 : "/static/assets/npcMp3/npc2again.mp3",
+            npc1_audio2 : "/static/assets/npcMp3/npc1again.mp3",
+            male_voice : "/static/assets/npcMp3/npcmalewin.mp3",
+            female_voice : "/static/assets/npcMp3/npcfemalewin.mp3",
+            npc1_portrait : "/static/assets/npc/aju.png",
+            npc2_portrait : "/static/assets/npc/althaf.png",
+            npc3_portrait : "/static/assets/npc/gouri.png",
+            npc4_portrait : "/static/assets/npc/narains.png",
+            npc5_portrait : "/static/assets/npc/baijus.png",
+            npc6_portrait : "/static/assets/npc/jaya.png",
+            npc7_portrait : "/static/assets/npc 3d/babu.png",
+            music_overworld : "/static/assets/audio/forest-163012.mp3",
+            sfx_footstep : "/static/assets/audio/rustling-grass-4-101281.mp3",
+            sfx_npc_interact : "/static/assets/audio/heavy-walking-footsteps-352771.mp3",
+            sfx_item_interact : "/static/assets/audio/heavy-walking-footsteps-352771.mp3",
+            sfx_task_interact : "/static/assets/audio/heavy-walking-footsteps-352771.mp3",
+            music_overworld2 : "/static/assets/audio/underground-audio.mp3",
+            sfx_footstep2 : "/static/assets/audio/rustling-grass-4-101281.mp3",
+            sfx_npc_interact2 : "/static/assets/audio/heavy-walking-footsteps-352771.mp3",
+            sfx_item_interact2 : "/static/assets/audio/heavy-walking-footsteps-352771.mp3",
+            sfx_task_interact2 : "/static/assets/audio/heavy-walking-footsteps-352771.mp3",
+        }
+    </script>
+    
+    <script>
+        const logindata = JSON.parse(localStorage.getItem("logindata"));
+        const token = logindata.token;
+        
+        function profile() {
+            fetch('https://ekadxkdpdg.execute-api.ap-south-1.amazonaws.com/sahasam-profile-viewer', {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            })
+            .then(response => response.json())
+            .then(profileData => {
+                GAME_DATA.chance = profileData.chanceno;
+                GAME_DATA.isGuessed = profileData.isGuessed;
+                GAME_DATA.fullamount = profileData.fullamount;
+                
+                updatechanceCounter();
+                updatecashCounter();
+                updateKeyCounter();
+            });
+        }
+
+        async function loadData() {
+            const api_url = "https://ekadxkdpdg.execute-api.ap-south-1.amazonaws.com/sahasam-GetGameData";
+            try {
+                const response = await fetch(api_url, {
+                    method: "GET",
+                    headers: {
+                        "Authorization": "Bearer " + token,
+                        "Content-Type": "application/json"
+                    }
+                });
+                
+                const data = await response.json();
+                
+                const tasksCompleted = data.tasksCompleted;
+                const samsaram = data.samsaram;
+                GAME_DATA.keys = data.keyss;
+                GAME_DATA.rida = data.is_played;
+                GAME_DATA.cash = data.cash;
+                GAME_DATA.playerX = data.player.x;
+                GAME_DATA.playerY = data.player.y;
+                GAME_DATA.npcs = samsaram;
+                GAME_DATA.levels = tasksCompleted;
+                
+                updatechanceCounter();
+                updatecashCounter();
+                updateKeyCounter();
+            } catch (error) {
+                alert("login error");
+                localStorage.setItem('logindata', '');
+                window.location.href = "/Login.html";
+            }
+        }
+        
+        window.GAME_DATA = {
+            cash: 0,
+            keys: 0,
+            chance: 0,
+            isGuessed: false,
+            rida: false,
+            levels: {},
+            npcs: {},
+            playerX: 135,
+            playerY: 2924,
+            fullamount: 10000,
+        }
+        
+        function updateKeyCounter() {
+            document.getElementById('keys').innerText = `${GAME_DATA.keys || 0}/6`;
+        }
+        
+        function updatecashCounter() {
+            document.getElementById('cashs').innerText = ` ${Number(GAME_DATA.cash) || 0}`;
+        }
+        
+        function updatechanceCounter() {
+            document.getElementById('chances').innerText = ` ${Number(GAME_DATA.chance) || 0}`;
+        }
+        
+        function updateProgress(amount) {
+            const progressFill = document.getElementById('progressFill');
+            const progressText = document.getElementById('progressText');
+            const currentProgress = (amount / 100000) * 100;
+            progressFill.style.width = currentProgress + '%';
+            progressText.textContent = '₹' + Math.round(amount);
+        }
+        
+        async function setgolbalamount() {
+            let cash;
+            
+            await fetch('https://ekadxkdpdg.execute-api.ap-south-1.amazonaws.com/sahasam-profile-viewer', {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            })
+            .then(response => response.json())
+            .then(profileData => {
+                cash = profileData.fullamount;
+            });
+            
+            if (cash <= Number(parseInt(document.getElementById('progressText').textContent.replace(/[^0-9]/g, '')))) return;
+            document.getElementById('progressFill').style.width = "0%";
+            let storedAmount = 10000;
+            const MAX_AMOUNT = 100000;
+            storedAmount = Math.max(storedAmount, Math.min(cash, MAX_AMOUNT));
+            let currentProgress = 1000;
+            
+            let loadingInterval = setInterval(() => {
+                let increment;
+                if (currentProgress < 50000) {
+                    increment = Math.random() * 3000 + 100;
+                } else if (currentProgress < 70000) {
+                    increment = Math.random() * 2000 + 50;
+                } else if (currentProgress < 90000) {
+                    increment = Math.random() * 1000 + 20;
+                } else {
+                    increment = Math.random() * 500 + 10;
+                }
+                
+                currentProgress += increment;
+                
+                if (currentProgress >= storedAmount) {
+                    currentProgress = storedAmount;
+                    updateProgress(storedAmount);
+                    clearInterval(loadingInterval);
+                } else {
+                    updateProgress(currentProgress);
+                }
+            }, 100);
+        }
+        
+        setInterval(setgolbalamount, 20000);
+        
+        // Load game data and start game
+        loadData();
+        profile();
+        
+        Promise.all([loadData(), profile()])
+            .then(() => {
+                const script = document.createElement('script');
+                script.src = '/static/game.js';
+                setTimeout(() => {
+                    document.body.appendChild(script);
+                }, 5000);
+            });
+    </script>
+    
+    <script>
+        // Info button logic
+        const infoBtn = document.getElementById('infoBtn');
+        const infoDialog = document.getElementById('infoDialog');
+        
+        function openInfo() {
+            infoDialog.style.display = 'block';
+        }
+        
+        function closeInfo() {
+            infoDialog.style.display = 'none';
+        }
+        
+        infoBtn.addEventListener('click', openInfo);
+        
+        document.addEventListener('mousedown', function(e) {
+            if (infoDialog.style.display === 'block' && !infoDialog.contains(e.target) && e.target !== infoBtn) {
+                closeInfo();
+            }
+        });
+        
+        document.addEventListener('keydown', function(e) {
+            if (e.key === "Escape") closeInfo();
+        });
+        
+        // Message bar function
+        function showMsgBar(msg = "An error", type = "error", d = 2000) {
+            const div = document.createElement("div");
+            div.className = 'msg-bar ' + type;
+            div.innerText = msg;
+            document.body.appendChild(div);
+            setTimeout(() => { div.remove() }, d);
+        }
+        
+        // Disable right click and dev tools
+        document.addEventListener("contextmenu", e => {
+            e.preventDefault();
+            showMsgBar("Can't do Right Click", "error");
+        });
+        
+        document.addEventListener("keydown", e => {
+            if (
+                e.key === "F12" ||
+                (e.ctrlKey && e.shiftKey && ['I', 'J', 'C', 'K'].includes(e.key)) ||
+                (e.ctrlKey && e.key === 'U') || (e.ctrlKey && e.key === 'u')
+            ) {
+                e.preventDefault();
+                showMsgBar("Nokkanda, kittoola", "error");
+            }
+        });
+        
+        console.log("Uff U R BRILLIANT");
+        console.log("Trying to send your location and Ip Address...");
+        setTimeout(() => {
+            console.log("Your location and Ip Address are Sent successfully...");
+        }, 2500);
+    </script>
+</body>
+</html>
